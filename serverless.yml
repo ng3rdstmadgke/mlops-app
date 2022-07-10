@@ -5,7 +5,64 @@ frameworkVersion: '3'
 provider:
   name: aws
   runtime: python3.8
+  region: ap-northeast-1
 
 functions:
   hello:
     handler: handler.hello
+
+stepFunctions:
+  stateMachines:
+    mystepfunc01:
+      name: myStateMachine01
+      definition:
+        Comment: A description of my state machine
+        StartAt: Lambda Invoke
+        States:
+          Choice:
+            Choices:
+            - Next: Success
+              NumericGreaterThanPath: $.limit
+              Variable: $.count
+            Default: Lambda Invoke 2
+            Type: Choice
+          Lambda Invoke:
+            Next: Choice
+            OutputPath: $.Payload
+            Parameters:
+              FunctionName:
+                Fn::GetAtt: [hello, Arn]
+              Payload.$: $
+            Resource: arn:aws:states:::lambda:invoke
+            Retry:
+            - BackoffRate: 2
+              ErrorEquals:
+              - Lambda.ServiceException
+              - Lambda.AWSLambdaException
+              - Lambda.SdkClientException
+              IntervalSeconds: 2
+              MaxAttempts: 6
+            Type: Task
+          Lambda Invoke 2:
+            Next: Choice
+            OutputPath: $.Payload
+            Parameters:
+              FunctionName:
+                Fn::GetAtt: [hello, Arn]
+              Payload.$: $
+            Resource: arn:aws:states:::lambda:invoke
+            Retry:
+            - BackoffRate: 2
+              ErrorEquals:
+              - Lambda.ServiceException
+              - Lambda.AWSLambdaException
+              - Lambda.SdkClientException
+              IntervalSeconds: 2
+              MaxAttempts: 6
+            Type: Task
+          Success:
+            Type: Succeed
+  validate: true
+
+plugins:
+  - serverless-step-functions
